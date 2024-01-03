@@ -46,7 +46,7 @@ impl DaoContract {
             );
             modify_metadata(&env, &"dao", _token.clone());
             modify_metadata(&env, &"daos", _token.clone());
-            add_dao_tx(&env, action, _name, signer, _token.clone(), zero); 
+            //add_dao_tx(&env, action, _name, signer, _token.clone(), zero); 
             return true
         }   
         else {
@@ -122,7 +122,7 @@ impl DaoContract {
                     modify_metadata(&env, &"user", _token.clone());
                 }
                 modify_metadata(&env, &"proposal", _token.clone());
-                add_dao_tx(&env, action, _name, signer.clone(), _daos, zero); 
+                //add_dao_tx(&env, action, _name, signer.clone(), _daos, zero); 
                 return _prop.id;
             }
             else {
@@ -220,7 +220,7 @@ impl DaoContract {
                                     modify_metadata(&env, &"user", dao.token.clone());
                                 }
                                 modify_metadata(&env, &"votes", dao.token.clone());
-                                add_dao_tx(&env, action, _name, signer.clone(), _dao, zero); 
+                                //add_dao_tx(&env, action, _name, signer.clone(), _dao, zero); 
                                 return symbol_short!("voted");
                             }
                             else {
