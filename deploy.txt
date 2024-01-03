@@ -1,0 +1,123 @@
+soroban contract deploy --wasm target/wasm32-unknown-unknown/release/lums_dao_contract.wasm --source guudc --network testnet
+
+Proposal creation:
+
+How it works:
+The user clicks on create proposal.
+He adds in the title and the description
+The proposal creator can also attach files (just the documents and imgs - .png, .jpg, .pdf, .docx, .xlxs
+The start date is automatically set at the time the user opens the proposal creation page and the end date is 5 days after the start date.
+When he clicks Create proposal, he will need to sign it on the blockchain because the proposals are also created through soroban smart contract.
+
+Automatically analyzing DAO participation, token balance, and wallet activity to calculate voting power
+
+For this task, please refer to this link
+
+
+Displaying the voting power calculation publicly for every proposal.
+
+There are going to be 2 sections, Total voting power of all the people who votes YES and total voting power for NO. The calculation for each vote will be displayed publicly.
+
+The voting is also done through smart contract.
+
+Development of "Top Voters" feature
+
+There’s a widget for Top Voters on the right of DAO page. It will display the list of DAO members that are most active on DAO’s activity. For example (how many proposals that have voted, how many comments on proposals, how many created proposals.
+
+NOTE: Members can only comment on the proposal after they’ve voted. This means that the comment button will only become active once that’ve voted on the proposal.
+
+
+
+LumosDAO Voting Power
+Calculation Documentation
+Introduction
+This document aims to provide a comprehensive guide to understanding how the Voting Power
+is calculated in the LumosDAO ecosystem. The Voting Power is a significant metric as it
+influences the weight of a member's vote in any proposal within a DAO. The maximum voting
+power that a vote can carry is 5. It is calculated based on three primary factors:
+● Token Holdings
+● DAO Activity
+● Wallet Metrics
+Voting Power Formula
+The Voting Power (VP) for any member is calculated using the following weighted formula:
+VP = (0.5 * Token Holdings Score) + (0.25 * DAO Activity Sub-score) + (0.25 * Wallet
+Metrics Sub-score)
+Scoring System
+Token Holdings Score (1-5)
+The score is assigned based on the member's ranking among the DAO's token holders:
+● Top 5 holders: Score = 5
+● Rank 6-50: Score = 4
+● Rank 51-100: Score = 3
+● Rank 101-500: Score = 2
+● Rank 500+: Score = 1
+DAO Activity Score (1-5 for each metric)
+Number of Voted Proposals:
+● 0 proposals: Score = 1
+● 1-5 proposals: Score = 2
+● 6-25 proposals: Score = 3
+● 26-50 proposals: Score = 4
+● 50+ proposals: Score = 5
+Number of Comments on Proposals:
+● 0 comments: Score = 1
+● 1-25 comments: Score = 2
+● 26-100 comments: Score = 3
+● 101-500 comments: Score = 4
+● 500+ comments: Score = 5
+Wallet Metrics Score (1-5 for each metric)
+Account Age:
+● Less than 1 month: Score = 1
+● 1-6 months: Score = 2
+● 6-12 months: Score = 3
+● 1-2 years: Score = 4
+● 2+ years: Score = 5
+Account Balance (in USD):
+● $0-$50: Score = 1
+● $51-$100: Score = 2
+● $101-$500: Score = 3
+● $501-$1000: Score = 4
+● $1000+: Score = 5
+Number of Trades:
+● No trades: Score = 1
+● 1-100 trades: Score = 2
+● 101-500 trades: Score = 3
+● 501-1000 trades: Score = 4
+● 1000+ trades: Score = 5
+Example Calculations:
+Patrick:
+Token Holdings Score:
+● Patrick is holder number 30, so his score is 4 (falls in the 6-50 range).
+DAO Activity Scores:
+● Voted on 2 proposals: Score = 2 (falls in the 1-5 proposals range).
+● Made 4 comments on proposals: Score = 2 (falls in the 1-25
+comments range).
+Wallet Metrics Scores:
+● Account age: 2 months old = Score 2 (falls in the 1-6 months range).
+● Account balance: $40 = Score 1 (falls in the $0-$50 range).
+● Number of trades: 15 trades = Score 2 (falls in the 1-100 trades
+range).
+DAO Activity Sub-score:
+(2 (for voting) + 2 (for comments)) / 2 = 2
+Wallet Metrics Sub-score: (2 (for age) + 1 (for balance) + 2 (for trades)) / 3
+= 5 / 3 ≈ 1.67
+Voting Power for Patrick: 0.5 × 4 (Token Holding) + 0.25 × 2 (DAO
+Activity) + 0.25 × 1.67 (Wallet Metrics)
+Voting Power for Patrick: 2 + 0.5 + 0.4175 = 2.9175
+Sam:
+Token Holdings Score:
+● Sam is holder number 2, so his score is 5 (falls in the Top 5 holders
+range).
+DAO Activity Scores:
+● Voted on 0 proposals: Score = 1 (falls in the 0 proposals range).
+● Made 2 comments on proposals: Score = 2 (falls in the 1-25
+comments range)
+Wallet Metrics Scores:
+● Account age: 3 months old = Score 2 (falls in the 1-6 months range).
+● Account balance: $0 = Score 1 (falls in the $0-$50 range).
+● Number of trades: 3 trades = Score 2 (falls in the 1-100 trades
+range).
+DAO Activity Sub-score: (1 (for voting) + 2 (for comments)) / 2 = 1.5
+Wallet Metrics Sub-score: (2 (for age) + 1 (for balance) + 2 (for trades)) / 3
+= 5 / 3 ≈ 1.67
+Voting Power for Sam: 0.5 × 5 (Token Holding) + 0.25 × 1.5 (DAO
+Activity) + 0.25 × 1.67 (Wallet Metrics)
+Voting Power for Sam: 2.5 + 0.375 + 0.4175 = 3.2925
