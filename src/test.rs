@@ -106,6 +106,7 @@ fn test_create_proposal() {
     let created: u64 = 123456789000;
     let end: u64 = created + 70000;
     let creates: u64 = 123456789000;
+    let budget: u64 = 30000;
     test.contract.create(
         &test.token_admin,
         &test.token.address,
@@ -120,7 +121,8 @@ fn test_create_proposal() {
         &"My First Proposal".into_val(&test.env), 
         &"Lets begin!".into_val(&test.env),
         &creates,
-        &"Links1, Links2".into_val(&test.env)
+        &"Links1, Links2".into_val(&test.env),
+        &budget
     );
     let _id: u64 = test.contract.create_proposal(
         &test.token_admin,
@@ -128,14 +130,20 @@ fn test_create_proposal() {
         &"My Second Proposal".into_val(&test.env), 
         &"Lets begin again!".into_val(&test.env),
         &creates,
-        &"Links1, Links2".into_val(&test.env)
+        &"Links1, Links2".into_val(&test.env),
+        &budget
     );
-
+    assert_eq!(test.contract.add_delegate(
+        &test.token.address,
+        &test.deposit_address,
+        &test.token_admin,
+    ), symbol_short!("true"));
+    
     let prop: Proposal = test.contract.get_proposal(&id);
     assert_eq!(prop.name, "My First Proposal".into_val(&test.env));
 
     let props: Proposal = test.contract.get_proposal(&_id);
-    assert_eq!(props.name, "My Second Proposal".into_val(&test.env));
+    assert_eq!(props.budget, budget);
 }
 
 #[test]
@@ -147,6 +155,7 @@ fn vote_proposal() {
     let creates: u64 = 123456789000;
     let vote_type: u64 = 1;
     let voting_power: u64 = 1;
+    let budget: u64 = 3000000;
     test.contract.create(
         &test.token_admin,
         &test.token.address,
@@ -161,14 +170,16 @@ fn vote_proposal() {
         &"My First Proposal".into_val(&test.env), 
         &"Lets begin!".into_val(&test.env),
         &creates,
-        &"Links1, Links2".into_val(&test.env)
+        &"Links1, Links2".into_val(&test.env),
+        &budget
     );
 
     assert_eq!(test.contract.vote_on_proposal(
         &id,
         &test.token_admin,
         &vote_type,
-        &voting_power
+        &voting_power,
+        &"Testing this".into_val(&test.env),
     ), symbol_short!("voted"));
     
     assert_eq!(test.contract.get_vote_type_proposal(

@@ -3,7 +3,7 @@
 
 //CREATES
 use soroban_sdk::{contract, contractimpl, token, symbol_short, vec, Symbol, Address, Env, Vec, String};
-use crate::storage::{MIN_DAO_TOKEN_BALANCE, MIN_VOTES_AMOUNT, Proposal, DAO, ProposalId, DaoMetadata,DaoTransactionMeta, DaoTransaction, DaoMeta, Votes, ProposalVoter, VoterInfo};
+use crate::storage::{MIN_DAO_TOKEN_BALANCE, MIN_VOTES_AMOUNT, Proposal, DAO, ProposalId, DaoMetadata,DaoTransactionMeta, DaoTransaction, DaoMeta, Votes, ProposalVoter, VoterInfo, Delegates};
 
 #[contract]
 pub struct DaoContract;
@@ -21,6 +21,7 @@ impl DaoContract {
             let members: Vec<Address> = vec![&env, _owner];
             let proposals_list: Vec<u64> = vec![&env];
             let top_voters: Vec<Votes> = vec![&env];
+            let delegators: Vec<Delegates> = vec![&env];
             const active_proposals: u64 = 0;
             const proposals: u64 = 0;
             const action: u64 = 1;
@@ -41,6 +42,7 @@ impl DaoContract {
                     proposals,
                     proposals_list,
                     top_voters,
+                    delegators,
                     created
                 },
             );
@@ -55,7 +57,7 @@ impl DaoContract {
     }
 
     //to create a proposal
-    pub fn create_proposal(env: Env, creator:Address, _token: Address, name:String, description: String, start_date:u64, links:String) -> u64 {
+    pub fn create_proposal(env: Env, creator:Address, _token: Address, name:String, description: String, start_date:u64, links:String, budget:u64) -> u64 {
         //check if the dao exists
         if is_dao(&env, &_token) {
             let mut _dao: DAO = env.storage().persistent().get(&_token).unwrap();
@@ -99,6 +101,7 @@ impl DaoContract {
                         yes_voting_power,
                         no_votes,
                         no_voting_power,
+                        budget,
                     },
                 );
                 let voter_info: Vec<VoterInfo> = vec![&env];
@@ -134,9 +137,9 @@ impl DaoContract {
         }
     }
 
-    //to vote on a proposal
-    //voter can only vote once
-    pub fn vote_on_proposal(env: Env, _proposal_id:u64, voters: Address, vote_type: u64, voting_power: u64) -> Symbol {
+    /*to vote on a proposal
+    voter can only vote once */
+    pub fn vote_on_proposal(env: Env, _proposal_id:u64, voters: Address, vote_type: u64, voting_power: u64, reason: String) -> Symbol {
         //check if the proposal exists
         if env.storage().persistent().has(&_proposal_id) {
             //check if proposal is still going on
@@ -195,13 +198,21 @@ impl DaoContract {
                                 voters.voters.push_back(voter.clone());
                                 let time = env.ledger().timestamp();
                                 let _voter = voter.clone();
+                                //check if it was a delegated vote
+                                let voter_delegators: Vec<Address> = Self::get_delegator(env.clone(), _dao.clone(), voter.clone());
+                                let mut delegated:bool = false;
+                                if !voter_delegators.is_empty() {
+                                    delegated = true;
+                                }
                                 //save voters info
                                 voters.voter_info.push_back(
                                     VoterInfo{
                                         voter,
                                         vote_type,
                                         voting_power,
-                                        time
+                                        time,
+                                        reason,
+                                        delegated,
                                     }
                                 );
                                 //save back the proposal
@@ -294,6 +305,13 @@ impl DaoContract {
         }
     }
 
+    //to delagate a delegatee
+    pub fn add_delegate(env: Env, dao:Address, delegator:Address, delegatee: Address) -> Symbol {
+        //check if the delegator exists
+        add_delegate_dao(&env, dao, delegator, delegatee);
+        return symbol_short!("true");
+    }
+
     /**GETTER FUNCTIONS**/
 
     //returns dao information
@@ -379,6 +397,18 @@ impl DaoContract {
         let _p: &str = "dao_tx";
         return env.storage().persistent().get(&_p).unwrap();
     }
+    //to return a delegated address
+    pub fn get_delegator(env: Env, dao:Address, delegatee: Address) -> Vec<Address> {
+        let _dao: DAO = env.storage().persistent().get(&dao).unwrap();
+        let flg: bool = false;
+        let mut delegators: Vec<Address> = vec![&env];
+        for item in _dao.delegators {
+            if item.delegatee == delegatee && item.delegator != delegatee {
+                delegators.push_back(item.delegator)
+            }
+        }
+        return delegators;
+    }
 }
 
 //to check if a dao has already being created
@@ -386,6 +416,9 @@ impl DaoContract {
 fn is_dao(env: &Env, token:&Address) -> bool {
    env.storage().persistent().has(&token) 
 }
+
+/* MODIFIERS */
+
 //to return new proposal id
 fn get_id(env: &Env) -> ProposalId {
     let _p: &str = "proposal";
@@ -413,7 +446,9 @@ fn get_id(env: &Env) -> ProposalId {
     } 
  }
 
-//to modify the metadata
+
+
+ //to modify the metadata
 fn modify_metadata(env: &Env, _type: &str, dao:Address) {
     let _p: &str = "metadata";
     if !env.storage().persistent().has(&_p) {
@@ -450,6 +485,7 @@ fn modify_metadata(env: &Env, _type: &str, dao:Address) {
         else if _type == "daos" {
             _meta.daos.push_back(dao);
         }
+        
         //save back
         env.storage().persistent().set(
             &_p,
@@ -513,5 +549,29 @@ fn add_member_dao(env: &Env, dao: Address, member: Address) -> bool {
         return true;
     }
     return false
+}
+fn add_delegate_dao(env: &Env, dao: Address, delegator: Address, delegatee: Address) -> bool {
+    let mut _dao: DAO = env.storage().persistent().get(&dao).unwrap();
+    let mut flg: bool = false;
+    for i in 0.._dao.delegators.len() {
+        let mut item: Delegates = _dao.delegators.get(i).unwrap();
+        if item.delegator == delegator {
+            //already present, update field
+            item.delegatee = delegatee.clone();
+            _dao.delegators.set(i, item);
+            flg = true;
+        }
+
+    }
+    if !flg {
+        //add new
+        _dao.delegators.push_back(
+            Delegates {
+                delegator,
+                delegatee,
+            }
+        )
+    }
+    return true
 }
   

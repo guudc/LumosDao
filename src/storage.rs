@@ -19,7 +19,8 @@ pub struct Proposal {
     pub yes_votes: u64,
     pub yes_voting_power: u64,
     pub no_votes: u64,
-    pub no_voting_power: u64
+    pub no_voting_power: u64,
+    pub budget: u64,
 }
 #[derive(Clone)]
 #[contracttype]
@@ -33,7 +34,9 @@ pub struct VoterInfo {
     pub voter: Address,
     pub vote_type: u64,
     pub voting_power: u64,
-    pub time: u64
+    pub time: u64,
+    pub reason: String,
+    pub delegated: bool
 }
 #[derive(Clone)]
 #[contracttype]
@@ -54,7 +57,8 @@ pub struct DAO {
     pub proposals: u64,
     pub proposals_list: Vec<u64>,
     pub top_voters: Vec<Votes>,
-    pub created: u64
+    pub delegators: Vec<Delegates>,
+    pub created: u64,
 }
 #[derive(Clone)]
 #[contracttype]
@@ -98,4 +102,10 @@ pub struct DaoTransactionMeta {
 #[contracttype]
 pub struct DaoTransaction {
     pub tx: Vec<DaoTransactionMeta> 
+}
+#[derive(Clone)]
+#[contracttype]
+pub struct Delegates {
+    pub delegator: Address,
+    pub delegatee: Address
 }
