@@ -409,6 +409,18 @@ impl DaoContract {
         }
         return delegators;
     }
+    //to return delegatees
+    pub fn get_delegatee(env: Env, dao:Address, delegator: Address) -> Vec<Address> {
+        let _dao: DAO = env.storage().persistent().get(&dao).unwrap();
+        let flg: bool = false;
+        let mut delegatee: Vec<Address> = vec![&env];
+        for item in _dao.delegators {
+            if item.delegator == delegator  {
+                delegatee.push_back(item.delegatee)
+            }
+        }
+        return delegatee;
+    }
 }
 
 //to check if a dao has already being created

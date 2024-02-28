@@ -139,6 +139,10 @@ fn test_create_proposal() {
         &test.token_admin,
     ), symbol_short!("true"));
     
+    test.contract.get_delegatee(
+        &test.token.address,
+        &test.deposit_address,
+    );
     let prop: Proposal = test.contract.get_proposal(&id);
     assert_eq!(prop.name, "My First Proposal".into_val(&test.env));
 
