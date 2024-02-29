@@ -415,7 +415,7 @@ impl DaoContract {
         let flg: bool = false;
         let mut delegatee: Vec<Address> = vec![&env];
         for item in _dao.delegators {
-            if item.delegator == delegator  {
+            if item.delegator == delegator  && item.delegatee != delegator {
                 delegatee.push_back(item.delegatee)
             }
         }
