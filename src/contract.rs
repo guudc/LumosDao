@@ -584,6 +584,11 @@ fn add_delegate_dao(env: &Env, dao: Address, delegator: Address, delegatee: Addr
             }
         )
     }
+    //save it back to storage
+    env.storage().persistent().set(
+        &dao,
+        &_dao
+    );
     return true
 }
   
