@@ -124,6 +124,28 @@ fn test_create_proposal() {
         &"Links1, Links2".into_val(&test.env),
         &budget
     );
+    
+    assert_eq!(test.contract.add_delegate(
+        &test.token.address,
+        &test.deposit_address,
+        &test.token_admin,
+    ), symbol_short!("true"));
+    
+    assert_eq!(test.contract.ban_member(
+        &test.token.address,
+        &test.token_admin,
+    ), symbol_short!("true"));
+
+    assert_eq!(test.contract.un_ban_member(
+        &test.token.address,
+        &test.token_admin,
+    ), symbol_short!("true"));
+    
+    test.contract.get_delegatee(
+        &test.token.address,
+        &test.deposit_address,
+    );
+
     let _id: u64 = test.contract.create_proposal(
         &test.token_admin,
         &test.token.address,
@@ -133,16 +155,7 @@ fn test_create_proposal() {
         &"Links1, Links2".into_val(&test.env),
         &budget
     );
-    assert_eq!(test.contract.add_delegate(
-        &test.token.address,
-        &test.deposit_address,
-        &test.token_admin,
-    ), symbol_short!("true"));
     
-    test.contract.get_delegatee(
-        &test.token.address,
-        &test.deposit_address,
-    );
     let prop: Proposal = test.contract.get_proposal(&id);
     assert_eq!(prop.name, "My First Proposal".into_val(&test.env));
 

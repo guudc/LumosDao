@@ -19,6 +19,7 @@ impl DaoContract {
             let token = _token.clone();
             let _owner: Address = owner.clone();
             let members: Vec<Address> = vec![&env, _owner];
+            let ban_members: Vec<Address> = vec![&env];
             let proposals_list: Vec<u64> = vec![&env];
             let top_voters: Vec<Votes> = vec![&env];
             let delegators: Vec<Delegates> = vec![&env];
@@ -38,6 +39,7 @@ impl DaoContract {
                     description,
                     url,
                     members,
+                    ban_members,
                     active_proposals,
                     proposals,
                     proposals_list,
@@ -61,79 +63,84 @@ impl DaoContract {
         //check if the dao exists
         if is_dao(&env, &_token) {
             let mut _dao: DAO = env.storage().persistent().get(&_token).unwrap();
-            let creator_balance: i128 = 1; //Not implementing creating per balancetoken::Client::new(&env, &_dao.token).balance(&creator);
-            if creator_balance >= MIN_DAO_TOKEN_BALANCE {
-                let dao = _token.clone();
-                let executed = false;
-                let _prop: ProposalId = get_id(&env);
-                let voters = 0;
-                let status = 1; //1 - active, 0 - ended
-                let yes_votes = 0;
-                let yes_voting_power = 0;
-                let no_votes = 0;
-                let no_voting_power = 0;
-                let _creator = creator.clone();
-                let mut start: u64 = env.ledger().timestamp();
-                // //cross check start date
-                // if start < start_date {
-                //     start = start_date;
-                // }
-                let _name: String = name.clone();
-                const action: u64 = 2;
-                let signer: Address = creator.clone();
-                let _daos: Address = _token.clone();
-                let zero: u64 = _prop.id.clone();
-                let end: u64 = start + 432000; //5 days
-                env.storage().persistent().set(
-                    &_prop.id,
-                    &Proposal {
-                        name,
-                        description,
-                        creator,
-                        voters,
-                        dao,
-                        executed,
-                        status,
-                        start,
-                        end,
-                        links,
-                        yes_votes,
-                        yes_voting_power,
-                        no_votes,
-                        no_voting_power,
-                        budget,
-                    },
-                );
-                let voter_info: Vec<VoterInfo> = vec![&env];
-                let voters: Vec<Address> = vec![&env];
-                //save proposal info
-                env.storage().persistent().set(
-                    &(_prop.id + 1),
-                    &ProposalVoter {
-                        voter_info,
-                        voters
-                    },
-                );
-                //increment the active proposals
-                _dao.active_proposals = _dao.active_proposals + 1;
-                //increment the total proposals
-                _dao.proposals = _dao.proposals + 1;
-                _dao.proposals_list.push_back(_prop.id.clone());
-                env.storage().persistent().set(&_token, &_dao);
-                //increase members if the creator is new
-                if add_member_dao(&env, _token.clone(), _creator) == true {
-                    modify_metadata(&env, &"user", _token.clone());
+            if !_dao.ban_members.contains(&creator) {
+                let creator_balance: i128 = 1; //Not implementing creating per balancetoken::Client::new(&env, &_dao.token).balance(&creator);
+                if creator_balance >= MIN_DAO_TOKEN_BALANCE {
+                    let dao = _token.clone();
+                    let executed = false;
+                    let _prop: ProposalId = get_id(&env);
+                    let voters = 0;
+                    let status = 1; //1 - active, 0 - ended
+                    let yes_votes = 0;
+                    let yes_voting_power = 0;
+                    let no_votes = 0;
+                    let no_voting_power = 0;
+                    let _creator = creator.clone();
+                    let mut start: u64 = env.ledger().timestamp();
+                    // //cross check start date
+                    // if start < start_date {
+                    //     start = start_date;
+                    // }
+                    let _name: String = name.clone();
+                    const action: u64 = 2;
+                    let signer: Address = creator.clone();
+                    let _daos: Address = _token.clone();
+                    let zero: u64 = _prop.id.clone();
+                    let end: u64 = start + 432000; //5 days
+                    env.storage().persistent().set(
+                        &_prop.id,
+                        &Proposal {
+                            name,
+                            description,
+                            creator,
+                            voters,
+                            dao,
+                            executed,
+                            status,
+                            start,
+                            end,
+                            links,
+                            yes_votes,
+                            yes_voting_power,
+                            no_votes,
+                            no_voting_power,
+                            budget,
+                        },
+                    );
+                    let voter_info: Vec<VoterInfo> = vec![&env];
+                    let voters: Vec<Address> = vec![&env];
+                    //save proposal info
+                    env.storage().persistent().set(
+                        &(_prop.id + 1),
+                        &ProposalVoter {
+                            voter_info,
+                            voters
+                        },
+                    );
+                    //increment the active proposals
+                    _dao.active_proposals = _dao.active_proposals + 1;
+                    //increment the total proposals
+                    _dao.proposals = _dao.proposals + 1;
+                    _dao.proposals_list.push_back(_prop.id.clone());
+                    env.storage().persistent().set(&_token, &_dao);
+                    //increase members if the creator is new
+                    if add_member_dao(&env, _token.clone(), _creator) == true {
+                        modify_metadata(&env, &"user", _token.clone());
+                    }
+                    modify_metadata(&env, &"proposal", _token.clone());
+                    //add_dao_tx(&env, action, _name, signer.clone(), _daos, zero); 
+                    return _prop.id;
                 }
-                modify_metadata(&env, &"proposal", _token.clone());
-                //add_dao_tx(&env, action, _name, signer.clone(), _daos, zero); 
-                return _prop.id;
+                else {
+                    return 0;
+                }
             }
             else {
-                return 0
+                return 0;
             }
         }
         else {
-            return 0
+            return 0;
         }
     }
 
@@ -144,122 +151,127 @@ impl DaoContract {
         if env.storage().persistent().has(&_proposal_id) {
             //check if proposal is still going on
             let mut prop: Proposal = env.storage().persistent().get(&_proposal_id).unwrap();
-            //do date comparison
-            let cDate: u64 = env.ledger().timestamp();
             let mut dao: DAO = env.storage().persistent().get(&prop.dao).unwrap();
-            if cDate >= prop.start {
-                if cDate <= prop.end { 
-                    if prop.executed == false {
-                        let mut voter = voters;
-                        let signer = voter.clone();
-                        let _dao = prop.dao.clone();
-                        let action = vote_type.clone() + 2;
-                        let _name = prop.name.clone();
-                        let zero: u64 = _proposal_id.clone();
-                        //check if user has enough of the DAO Token to vote
-                        let voter_balance: i128 = 1; //token::Client::new(&env, &dao.token).balance(&voter);
-                        if voter_balance > MIN_DAO_TOKEN_BALANCE {
-                            //can vote
-                            //get the prop voters info, the info is in +1 of the proposal id
-                            let mut voters: ProposalVoter = env.storage().persistent().get(&(_proposal_id + 1)).unwrap();
-                            if !voters.voters.contains(&voter) {
-                                //has not voted
-                                if vote_type == 1 {
-                                    //yes voting
-                                    prop.yes_votes = prop.yes_votes + 1;
-                                    prop.yes_voting_power = prop.yes_voting_power + voting_power;
-                                }
-                                else if vote_type == 2 {
-                                    //yes voting
-                                    prop.no_votes = prop.no_votes + 1;
-                                    prop.no_voting_power = prop.no_voting_power + voting_power;
-                                }
-                                let mut i = 0; let mut flg: bool = false;
-                                //modify the top voters for dao
-                                let _votersinfo = dao.top_voters.clone();
-                                for mut _voterInfo in _votersinfo {
-                                    if _voterInfo.voter == voter {
-                                        //update its vote number
-                                        _voterInfo.vote += 1;
-                                        dao.top_voters.set(i, _voterInfo);
-                                        flg = true;
-                                        break;
+            if !dao.ban_members.contains(&voters) {
+                //do date comparison
+                let cDate: u64 = env.ledger().timestamp();
+                if cDate >= prop.start {
+                    if cDate <= prop.end { 
+                        if prop.executed == false {
+                            let mut voter = voters;
+                            let signer = voter.clone();
+                            let _dao = prop.dao.clone();
+                            let action = vote_type.clone() + 2;
+                            let _name = prop.name.clone();
+                            let zero: u64 = _proposal_id.clone();
+                            //check if user has enough of the DAO Token to vote
+                            let voter_balance: i128 = 1; //token::Client::new(&env, &dao.token).balance(&voter);
+                            if voter_balance > MIN_DAO_TOKEN_BALANCE {
+                                //can vote
+                                //get the prop voters info, the info is in +1 of the proposal id
+                                let mut voters: ProposalVoter = env.storage().persistent().get(&(_proposal_id + 1)).unwrap();
+                                if !voters.voters.contains(&voter) {
+                                    //has not voted
+                                    if vote_type == 1 {
+                                        //yes voting
+                                        prop.yes_votes = prop.yes_votes + 1;
+                                        prop.yes_voting_power = prop.yes_voting_power + voting_power;
                                     }
-                                    i += 1;
-                                }
-                                let __voter = voter.clone();
-                                if !flg {
-                                    let vote = 1;
-                                    //add new voter info
-                                    dao.top_voters.push_back(Votes{voter, vote});
-                                }
-                                prop.voters += 1;
-                                voter = __voter;
-                                voters.voters.push_back(voter.clone());
-                                let time = env.ledger().timestamp();
-                                let _voter = voter.clone();
-                                //check if it was a delegated vote
-                                let voter_delegators: Vec<Address> = Self::get_delegator(env.clone(), _dao.clone(), voter.clone());
-                                let mut delegated:bool = false;
-                                if !voter_delegators.is_empty() {
-                                    delegated = true;
-                                }
-                                //save voters info
-                                voters.voter_info.push_back(
-                                    VoterInfo{
-                                        voter,
-                                        vote_type,
-                                        voting_power,
-                                        time,
-                                        reason,
-                                        delegated,
+                                    else if vote_type == 2 {
+                                        //yes voting
+                                        prop.no_votes = prop.no_votes + 1;
+                                        prop.no_voting_power = prop.no_voting_power + voting_power;
                                     }
-                                );
-                                //save back the proposal
-                                env.storage().persistent().set(
-                                    &_proposal_id,
-                                    &prop
-                                );
-                                env.storage().persistent().set(
-                                    &(_proposal_id + 1),
-                                    &voters
-                                );
-                                //save back the dao
-                                env.storage().persistent().set(&prop.dao, &dao);
-                                //save back this member as part of the dao members
-                                if add_member_dao(&env, dao.token.clone(), _voter) == true {
-                                    modify_metadata(&env, &"user", dao.token.clone());
+                                    let mut i = 0; let mut flg: bool = false;
+                                    //modify the top voters for dao
+                                    let _votersinfo = dao.top_voters.clone();
+                                    for mut _voterInfo in _votersinfo {
+                                        if _voterInfo.voter == voter {
+                                            //update its vote number
+                                            _voterInfo.vote += 1;
+                                            dao.top_voters.set(i, _voterInfo);
+                                            flg = true;
+                                            break;
+                                        }
+                                        i += 1;
+                                    }
+                                    let __voter = voter.clone();
+                                    if !flg {
+                                        let vote = 1;
+                                        //add new voter info
+                                        dao.top_voters.push_back(Votes{voter, vote});
+                                    }
+                                    prop.voters += 1;
+                                    voter = __voter;
+                                    voters.voters.push_back(voter.clone());
+                                    let time = env.ledger().timestamp();
+                                    let _voter = voter.clone();
+                                    //check if it was a delegated vote
+                                    let voter_delegators: Vec<Address> = Self::get_delegator(env.clone(), _dao.clone(), voter.clone());
+                                    let mut delegated:bool = false;
+                                    if !voter_delegators.is_empty() {
+                                        delegated = true;
+                                    }
+                                    //save voters info
+                                    voters.voter_info.push_back(
+                                        VoterInfo{
+                                            voter,
+                                            vote_type,
+                                            voting_power,
+                                            time,
+                                            reason,
+                                            delegated,
+                                        }
+                                    );
+                                    //save back the proposal
+                                    env.storage().persistent().set(
+                                        &_proposal_id,
+                                        &prop
+                                    );
+                                    env.storage().persistent().set(
+                                        &(_proposal_id + 1),
+                                        &voters
+                                    );
+                                    //save back the dao
+                                    env.storage().persistent().set(&prop.dao, &dao);
+                                    //save back this member as part of the dao members
+                                    if add_member_dao(&env, dao.token.clone(), _voter) == true {
+                                        modify_metadata(&env, &"user", dao.token.clone());
+                                    }
+                                    modify_metadata(&env, &"votes", dao.token.clone());
+                                    //add_dao_tx(&env, action, _name, signer.clone(), _dao, zero); 
+                                    return symbol_short!("voted");
                                 }
-                                modify_metadata(&env, &"votes", dao.token.clone());
-                                //add_dao_tx(&env, action, _name, signer.clone(), _dao, zero); 
-                                return symbol_short!("voted");
+                                else {
+                                    return symbol_short!("hasvoted");
+                                }
                             }
                             else {
-                                return symbol_short!("hasvoted");
+                                return symbol_short!("lowbal");
                             }
                         }
                         else {
-                            return symbol_short!("lowbal");
+                            return symbol_short!("inactive");
                         }
                     }
                     else {
-                        return symbol_short!("inactive");
+                        prop.status = 0; //change the status
+                        dao.active_proposals -= 1;
+                        env.storage().persistent().set(
+                            &_proposal_id,
+                            &prop
+                        );
+                        env.storage().persistent().set(&prop.dao, &dao);
+                        //remove it from active proposa;
+                        return symbol_short!("ended");
                     }
                 }
                 else {
-                    prop.status = 0; //change the status
-                    dao.active_proposals -= 1;
-                    env.storage().persistent().set(
-                        &_proposal_id,
-                        &prop
-                    );
-                    env.storage().persistent().set(&prop.dao, &dao);
-                    //remove it from active proposa;
-                    return symbol_short!("ended");
+                    return symbol_short!("notstart"); //Proposal hasn't started
                 }
             }
             else {
-                return symbol_short!("notstart"); //Proposal hasn't started
+                return symbol_short!("banned");
             }
         }
         else {
@@ -274,30 +286,35 @@ impl DaoContract {
             //check if proposal is still going on
             let mut prop: Proposal = env.storage().persistent().get(&_proposal_id).unwrap();
             let mut dao: DAO = env.storage().persistent().get(&prop.dao).unwrap();
-            if dao.owner == owner {
-                //can execute
-                if (prop.no_votes + prop.yes_votes) >= MIN_VOTES_AMOUNT {
+            if !dao.ban_members.contains(&owner) {
+                if dao.owner == owner {
                     //can execute
-                    prop.executed = true;
-                    prop.status = 0;
-                    env.storage().persistent().set(
-                        &_proposal_id,
-                        &prop
-                    );
-                    //reduce the amount of active proposals
-                    dao.active_proposals = dao.active_proposals - 1;
-                    env.storage().persistent().set(
-                        &prop.dao,
-                        &dao
-                    );
-                    return symbol_short!("done");
+                    if (prop.no_votes + prop.yes_votes) >= MIN_VOTES_AMOUNT {
+                        //can execute
+                        prop.executed = true;
+                        prop.status = 0;
+                        env.storage().persistent().set(
+                            &_proposal_id,
+                            &prop
+                        );
+                        //reduce the amount of active proposals
+                        dao.active_proposals = dao.active_proposals - 1;
+                        env.storage().persistent().set(
+                            &prop.dao,
+                            &dao
+                        );
+                        return symbol_short!("done");
+                    }
+                    else {
+                        return symbol_short!("lowvotes");
+                    }
                 }
                 else {
-                    return symbol_short!("lowvotes");
+                    return symbol_short!("notowner");
                 }
             }
-            else {
-               return symbol_short!("notowner");
+            else{
+                return symbol_short!("banned");
             }
         }
         else {
@@ -312,6 +329,27 @@ impl DaoContract {
         return symbol_short!("true");
     }
 
+    //to ban a member
+    pub fn ban_member(env: Env, dao:Address, member:Address) -> Symbol {
+        //check if the delegator exists
+        if ban_member_dao(&env, dao, member) == true {
+            return symbol_short!("true");
+        }
+        else {
+            return symbol_short!("false");
+        }
+    }
+
+    //to unban a member
+    pub fn un_ban_member(env: Env, dao:Address, member:Address) -> Symbol {
+        //check if the delegator exists
+        if unban_member_dao(&env, dao, member) == true {
+            return symbol_short!("true");
+        }
+        else {
+            return symbol_short!("false");
+        }
+    }
     /**GETTER FUNCTIONS**/
 
     //returns dao information
@@ -591,4 +629,30 @@ fn add_delegate_dao(env: &Env, dao: Address, delegator: Address, delegatee: Addr
     );
     return true
 }
-  
+fn ban_member_dao(env: &Env, dao: Address, member: Address) -> bool {
+    let mut _dao: DAO = env.storage().persistent().get(&dao).unwrap();
+    if !_dao.ban_members.contains(&member) {
+        //new member, add it
+        _dao.ban_members.push_back(member);
+        //save back
+        env.storage().persistent().set(
+            &dao,
+            &_dao
+        );
+        return true;
+    }
+    return false
+}
+fn unban_member_dao(env: &Env, dao: Address, member: Address) -> bool {
+    let mut _dao: DAO = env.storage().persistent().get(&dao).unwrap();
+    if _dao.ban_members.contains(&member) {
+        //new member, add it
+        _dao.ban_members.remove(_dao.ban_members.first_index_of(&member).unwrap());
+        //save back
+        env.storage().persistent().set(
+            &dao,
+            &_dao
+        );
+    }
+    return true
+} 

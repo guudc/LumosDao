@@ -53,6 +53,7 @@ pub struct DAO {
     pub description: String,
     pub url: String,
     pub members: Vec<Address>,
+    pub ban_members: Vec<Address>,
     pub active_proposals: u64,
     pub proposals: u64,
     pub proposals_list: Vec<u64>,
