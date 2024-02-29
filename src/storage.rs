@@ -70,6 +70,7 @@ pub struct DaoMeta {
     pub url: String,
     pub description: String,
     pub members: u64,
+    pub ban_members: Vec<Address>,
     pub active_proposals: u64,
     pub proposals: Vec<u64>,
     pub top_voters: Vec<Votes>,

@@ -361,6 +361,7 @@ impl DaoContract {
         let url: String =  dao.url;
         let token: Address = dao.token;
         let members: u64 = dao.members.len().into();
+        let ban_members: Vec<Address> = dao.ban_members;
         let active_proposals: u64 = dao.active_proposals;
         let proposals: Vec<u64> = dao.proposals_list;
         let created: u64 = dao.created;
@@ -372,6 +373,7 @@ impl DaoContract {
             description,
             url,
             members,
+            ban_members,
             active_proposals,
             proposals,
             top_voters,
@@ -458,6 +460,14 @@ impl DaoContract {
             }
         }
         return delegatee;
+    }
+    //to return if banned
+    pub fn get_ban(env: Env, dao:Address, member: Address) -> bool {
+        let _dao: DAO = env.storage().persistent().get(&dao).unwrap();
+        if _dao.ban_members.contains(&member) {
+             return true
+        }
+        return false;
     }
 }
 

@@ -136,11 +136,21 @@ fn test_create_proposal() {
         &test.token_admin,
     ), symbol_short!("true"));
 
+    assert_eq!(test.contract.get_ban(
+        &test.token.address,
+        &test.token_admin,
+    ), true);
+
     assert_eq!(test.contract.un_ban_member(
         &test.token.address,
         &test.token_admin,
     ), symbol_short!("true"));
     
+    assert_eq!(test.contract.get_ban(
+        &test.token.address,
+        &test.token_admin,
+    ), false);
+
     test.contract.get_delegatee(
         &test.token.address,
         &test.deposit_address,
@@ -155,7 +165,7 @@ fn test_create_proposal() {
         &"Links1, Links2".into_val(&test.env),
         &budget
     );
-    
+
     let prop: Proposal = test.contract.get_proposal(&id);
     assert_eq!(prop.name, "My First Proposal".into_val(&test.env));
 
