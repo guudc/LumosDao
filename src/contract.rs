@@ -70,7 +70,7 @@ impl DaoContract {
                     let executed = false;
                     let _prop: ProposalId = get_id(&env);
                     let voters = 0;
-                    let status = 1; //1 - active, 0 - ended
+                    let status = 1; //1 - active, 0 - approved, 2 - rejected, 3 - ended
                     let yes_votes = 0;
                     let yes_voting_power = 0;
                     let no_votes = 0;
@@ -280,7 +280,7 @@ impl DaoContract {
     }
 
     //execute a proposal
-    pub fn execute_proposal(env: Env, _proposal_id:u64, owner: Address) -> Symbol {
+    pub fn execute_proposal(env: Env, _proposal_id:u64, owner: Address, status: u64) -> Symbol {
         //check if the proposal exists
         if env.storage().persistent().has(&_proposal_id) {
             //check if proposal is still going on
@@ -292,7 +292,7 @@ impl DaoContract {
                     if (prop.no_votes + prop.yes_votes) >= MIN_VOTES_AMOUNT {
                         //can execute
                         prop.executed = true;
-                        prop.status = 0;
+                        prop.status = status;
                         env.storage().persistent().set(
                             &_proposal_id,
                             &prop
@@ -393,7 +393,7 @@ impl DaoContract {
     //returns proposal information
     pub fn get_proposal(env:Env, _proposal_id: u64) -> Proposal {
        let mut prop: Proposal =  env.storage().persistent().get(&_proposal_id).unwrap();
-       if env.ledger().timestamp() > prop.end {prop.status = 0;}
+       if env.ledger().timestamp() > prop.end && prop.executed == false {prop.status = 3;}
        return prop;
     }
     //returns proposal voters info
