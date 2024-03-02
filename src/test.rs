@@ -53,6 +53,7 @@ impl<'a> DaoTest<'a> {
         token_admin_client.mint(&deposit_address, &1000);
 
         let contract = create_dao_test_contract(&env);
+        token_admin_client.mint(&contract.get_my_address(), &10000);
         DaoTest {
             env,
             deposit_address,
@@ -83,18 +84,6 @@ fn test_create_dao() {
     );
     let dao: DaoMeta = test.contract.get_dao(&test.token.address);
     
-    let res: bool = test.contract.create(
-        &test.deposit_address,
-        &ttest.token_admin,
-        &"DAOs".into_val(&test.env),
-        &"Friendly Dao".into_val(&test.env),
-        &"Friendly Dao".into_val(&test.env),
-        &created
-    );
-    let daos: DaoMeta = test.contract.get_dao(&test.token_admin);
-    let dao: DaoMeta = test.contract.get_dao(&test.token.address);
-    
-    assert_eq!(daos.name, "DAOs".into_val(&test.env));
     assert_eq!(dao.name, "DAO".into_val(&test.env));
 }
 
@@ -106,7 +95,7 @@ fn test_create_proposal() {
     let created: u64 = 123456789000;
     let end: u64 = created + 70000;
     let creates: u64 = 123456789000;
-    let budget: u64 = 30000;
+    let budget: i128 = 30000;
     test.contract.create(
         &test.token_admin,
         &test.token.address,
@@ -182,7 +171,7 @@ fn vote_proposal() {
     let creates: u64 = 123456789000;
     let vote_type: u64 = 1;
     let voting_power: u64 = 1;
-    let budget: u64 = 3000000;
+    let budget: i128 = 3000000;
     test.contract.create(
         &test.token_admin,
         &test.token.address,
@@ -217,42 +206,86 @@ fn vote_proposal() {
 
 
 
-// #[test]
-// fn execute_proposal() {
-//     let test = DaoTest::setup();
-//     let created: u64 = 123456789000;
-//     let end: u64 = created + 70000;
-//     let creates: u64 = 123456789000;
-//     test.contract.create(
-//         &test.token_admin,
-//         &test.token.address,
-//         &"DAO".into_val(&test.env),
-//         &"Friendly Dao".into_val(&test.env),
-//         &"Friendly Dao".into_val(&test.env),
-//         &created,
-//     );
-//     let id: u64 = test.contract.create_proposal(
-//         &test.deposit_address,
-//         &test.token.address,
-//         &"My First Proposal".into_val(&test.env), 
-//         &"Lets begin!".into_val(&test.env),
-//         &creates,
-//         &"Links1, Links2".into_val(&test.env)
-//     );
+#[test]
+fn execute_proposal() {
+    let test = DaoTest::setup();
+    //first create dao
+    let created: u64 = 123456789000;
+    let end: u64 = created + 70000;
+    let creates: u64 = 123456789000;
+    let vote_type: u64 = 1;
+    let voting_power: u64 = 1;
+    let budget: i128 = 30;
+    let status: u64 = 0;
+    test.contract.create(
+        &test.deposit_address,
+        &test.token.address,
+        &"DAO".into_val(&test.env),
+        &"Friendly Dao".into_val(&test.env),
+        &"Friendly Dao".into_val(&test.env),
+        &created,
+    );
+    let id: u64 = test.contract.create_proposal(
+        &test.deposit_address,
+        &test.token.address,
+        &"My First Proposal".into_val(&test.env), 
+        &"Lets begin!".into_val(&test.env),
+        &creates,
+        &"Links1, Links2".into_val(&test.env),
+        &budget
+    );
 
-//     let prop: Proposal = test.contract.get_proposal(
-//         &id
-//     ); 
+    test.contract.vote_on_proposal(
+        &id,
+        &test.token_admin,
+        &vote_type,
+        &voting_power,
+        &"Testing this".into_val(&test.env),
+    );
+   
+    assert_eq!(test.contract.add_admin(
+        &test.token.address,
+        &test.token_admin,
+        &test.deposit_address,
+    ), symbol_short!("true"));
 
-//     test.contract.vote_on_proposal(
-//         &id,
-//         &test.deposit_address
-//     );
+    assert_eq!(test.contract.add_admin(
+        &test.token.address,
+        &test.token_admin,
+        &test.token_admin,
+    ), symbol_short!("true"));
 
-//     assert_eq!(test.contract.execute_proposal(
-//         &id,
-//         &test.token_admin,
-//     ), symbol_short!("done"))
+    assert_eq!(test.contract.set_treasury(
+        &test.token.address,
+        &test.token_admin,
+        &test.deposit_address,
+    ), symbol_short!("true"));
+
+    let dao: DaoMeta = test.contract.get_dao(&test.token.address);
+    assert_eq!(dao.admins.len(), 2);
+
+    assert_eq!(test.contract.remove_admin(
+        &test.token.address,
+        &test.token_admin,
+        &test.deposit_address,
+    ), symbol_short!("true"));
     
-// }
+    assert_eq!(test.contract.execute_proposal(
+        &id,
+        &test.token_admin,
+        &status
+    ), symbol_short!("done"));
+
+    assert_eq!(test.contract.sign_admin(
+        &test.token.address,
+        &id,
+        &test.token_admin,
+    ), symbol_short!("transfer"));
+    // assert_eq!(test.contract.sign_admin(
+    //     &test.token.address,
+    //     &id,
+    //     &test.deposit_address,
+    // ), symbol_short!("transfer"));
+    
+}
 //soroban contract deploy --wasm target/wasm32-unknown-unknown/release/lumos_dao_contract.wasm --source guudc --network testnet

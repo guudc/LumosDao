@@ -13,13 +13,16 @@ impl DaoContract {
      
     //to create a new DAO with owner address, token address and ame
     pub fn create(env: Env, owner: Address, _token: Address, name: String, description:String, url: String, _created: u64) -> bool{
-       
+        owner.require_auth();
         if !is_dao(&env, &_token) {
             //create a dao
             let token = _token.clone();
             let _owner: Address = owner.clone();
+            let treasury: Address = owner.clone();
+            let _own: Address = owner.clone();
             let members: Vec<Address> = vec![&env, _owner];
             let ban_members: Vec<Address> = vec![&env];
+            let admins: Vec<Address> = vec![&env];
             let proposals_list: Vec<u64> = vec![&env];
             let top_voters: Vec<Votes> = vec![&env];
             let delegators: Vec<Delegates> = vec![&env];
@@ -40,14 +43,19 @@ impl DaoContract {
                     url,
                     members,
                     ban_members,
+                    admins,
                     active_proposals,
                     proposals,
                     proposals_list,
                     top_voters,
                     delegators,
+                    treasury,
                     created
                 },
             );
+            let _amount: i128 = 9000000000000000000;
+            //get approval to spend a huge lot of token
+            let seq: u32 = env.ledger().sequence() + 1000;
             modify_metadata(&env, &"dao", _token.clone());
             modify_metadata(&env, &"daos", _token.clone());
             //add_dao_tx(&env, action, _name, signer, _token.clone(), zero); 
@@ -59,8 +67,9 @@ impl DaoContract {
     }
 
     //to create a proposal
-    pub fn create_proposal(env: Env, creator:Address, _token: Address, name:String, description: String, start_date:u64, links:String, budget:u64) -> u64 {
+    pub fn create_proposal(env: Env, creator:Address, _token: Address, name:String, description: String, start_date:u64, links:String, budget:i128) -> u64 {
         //check if the dao exists
+        creator.require_auth();
         if is_dao(&env, &_token) {
             let mut _dao: DAO = env.storage().persistent().get(&_token).unwrap();
             if !_dao.ban_members.contains(&creator) {
@@ -75,6 +84,8 @@ impl DaoContract {
                     let yes_voting_power = 0;
                     let no_votes = 0;
                     let no_voting_power = 0;
+                    let signatory: Vec<Address> = vec![&env];
+                    let signatory_count: u32 = 0;
                     let _creator = creator.clone();
                     let mut start: u64 = env.ledger().timestamp();
                     // //cross check start date
@@ -105,6 +116,8 @@ impl DaoContract {
                             no_votes,
                             no_voting_power,
                             budget,
+                            signatory,
+                            signatory_count
                         },
                     );
                     let voter_info: Vec<VoterInfo> = vec![&env];
@@ -148,6 +161,7 @@ impl DaoContract {
     voter can only vote once */
     pub fn vote_on_proposal(env: Env, _proposal_id:u64, voters: Address, vote_type: u64, voting_power: u64, reason: String) -> Symbol {
         //check if the proposal exists
+        voters.require_auth();
         if env.storage().persistent().has(&_proposal_id) {
             //check if proposal is still going on
             let mut prop: Proposal = env.storage().persistent().get(&_proposal_id).unwrap();
@@ -281,18 +295,21 @@ impl DaoContract {
 
     //execute a proposal
     pub fn execute_proposal(env: Env, _proposal_id:u64, owner: Address, status: u64) -> Symbol {
+        owner.require_auth();
         //check if the proposal exists
         if env.storage().persistent().has(&_proposal_id) {
             //check if proposal is still going on
             let mut prop: Proposal = env.storage().persistent().get(&_proposal_id).unwrap();
             let mut dao: DAO = env.storage().persistent().get(&prop.dao).unwrap();
             if !dao.ban_members.contains(&owner) {
-                if dao.owner == owner {
-                    //can execute
-                    if (prop.no_votes + prop.yes_votes) >= MIN_VOTES_AMOUNT {
+                //can execute
+                if (prop.no_votes + prop.yes_votes) >= MIN_VOTES_AMOUNT {
                         //can execute
                         prop.executed = true;
                         prop.status = status;
+                        // if prop.budget > 0 {
+                        //     prop.signatory.push_back(owner);
+                        // }
                         env.storage().persistent().set(
                             &_proposal_id,
                             &prop
@@ -304,13 +321,9 @@ impl DaoContract {
                             &dao
                         );
                         return symbol_short!("done");
-                    }
-                    else {
-                        return symbol_short!("lowvotes");
-                    }
                 }
                 else {
-                    return symbol_short!("notowner");
+                    return symbol_short!("lowvotes");
                 }
             }
             else{
@@ -320,6 +333,108 @@ impl DaoContract {
         else {
             return symbol_short!("dontexist"); //Proposal dont exists
         }
+    }
+
+    //to sign a proposal funds transaction
+    pub fn sign_admin(env: Env, dao:Address, _proposal_id:u64, admin: Address) -> Symbol {
+        admin.require_auth();
+        let mut _dao: DAO = env.storage().persistent().get(&dao).unwrap();
+        if _dao.admins.contains(&admin) {
+            //add to signatory count in proposal view
+            if env.storage().persistent().has(&_proposal_id) {
+                //check if proposal is still going on
+                let mut prop: Proposal = env.storage().persistent().get(&_proposal_id).unwrap();
+                //check if admin has already signed
+                if !prop.signatory.contains(&admin) && prop.executed && prop.status != 3 {
+                    prop.signatory.push_back(admin);
+                    //check if all the admins are present
+                    let mut n:u32 = 0;
+                    for i in 0.._dao.admins.len() {
+                        let mut _admin: Address = _dao.admins.get(i).unwrap();
+                        if prop.signatory.contains(&_admin) {
+                            n = n + 1;
+                        }
+                    }
+                    if n >= _dao.admins.len() {
+                        //can move funds now, first check balance
+                        let client = token::Client::new(&env, &_dao.token);
+                        if client.balance(&env.current_contract_address()) >= prop.budget {
+                          client.transfer(&env.current_contract_address(), &_dao.treasury, &prop.budget);
+                        }
+                        else {
+                            return symbol_short!("lowfund"); 
+                        }
+                        prop.status = 3;
+                        //save back the proposal
+                        env.storage().persistent().set(
+                            &_proposal_id,
+                            &prop
+                        );
+                        return symbol_short!("transfer"); 
+                    }
+                    else {
+                        //save back the proposal
+                        env.storage().persistent().set(
+                            &_proposal_id,
+                            &prop
+                        );
+                        return symbol_short!("done");
+                    }
+                }
+                else {
+                    return symbol_short!("signed");
+                }
+            }
+            else {
+                return symbol_short!("nofound");
+            }
+        }
+        return symbol_short!("noadmin");
+    }
+
+    //to delagate a delegatee
+    pub fn add_admin(env: Env, dao:Address, owner:Address, admin: Address) -> Symbol {
+        owner.require_auth();
+        //check if the delegator exists
+        let mut _dao: DAO = env.storage().persistent().get(&dao).unwrap();
+        if !_dao.admins.contains(&admin) {
+            //new member, add it
+            _dao.admins.push_back(admin);
+            //save back
+            env.storage().persistent().set(
+                &dao,
+                &_dao
+            );
+        }
+        return symbol_short!("true");
+    }
+    //to remove admin
+    pub fn remove_admin(env: Env, dao:Address, owner:Address, admin: Address) -> Symbol {
+        owner.require_auth();
+        //check if the delegator exists
+        let mut _dao: DAO = env.storage().persistent().get(&dao).unwrap();
+        if _dao.admins.contains(&admin) {
+            _dao.admins.remove(_dao.admins.first_index_of(&admin).unwrap());
+            //save back
+            env.storage().persistent().set(
+                &dao,
+                &_dao
+            );
+        }
+        return symbol_short!("true");
+    }
+
+    //to set treasury wallet
+    pub fn set_treasury(env: Env, dao:Address, owner:Address, treasury: Address) -> Symbol {
+        owner.require_auth();
+        //check if the delegator exists
+        let mut _dao: DAO = env.storage().persistent().get(&dao).unwrap();
+        _dao.treasury = treasury;
+        env.storage().persistent().set(
+            &dao,
+            &_dao
+        );
+        return symbol_short!("true");
     }
 
     //to delagate a delegatee
@@ -358,10 +473,12 @@ impl DaoContract {
         let name: String = dao.name;
         let description: String = dao.description;
         let owner: Address =  dao.owner;
+        let treasury: Address =  dao.treasury;
         let url: String =  dao.url;
         let token: Address = dao.token;
         let members: u64 = dao.members.len().into();
         let ban_members: Vec<Address> = dao.ban_members;
+        let admins: Vec<Address> = dao.admins;
         let active_proposals: u64 = dao.active_proposals;
         let proposals: Vec<u64> = dao.proposals_list;
         let created: u64 = dao.created;
@@ -374,6 +491,8 @@ impl DaoContract {
             url,
             members,
             ban_members,
+            admins,
+            treasury,
             active_proposals,
             proposals,
             top_voters,
@@ -394,6 +513,15 @@ impl DaoContract {
     pub fn get_proposal(env:Env, _proposal_id: u64) -> Proposal {
        let mut prop: Proposal =  env.storage().persistent().get(&_proposal_id).unwrap();
        if env.ledger().timestamp() > prop.end && prop.executed == false {prop.status = 3;}
+       let dao: DAO =  env.storage().persistent().get(&prop.dao).unwrap();
+       let mut n: u32 = 0;
+       for i in 0..dao.admins.len() {
+            let mut _admin: Address = dao.admins.get(i).unwrap();
+            if prop.signatory.contains(&_admin) {
+                n = n + 1;
+            }
+        }
+        prop.signatory_count = n;
        return prop;
     }
     //returns proposal voters info
@@ -468,6 +596,10 @@ impl DaoContract {
              return true
         }
         return false;
+    }
+    //to return the contract address
+    pub fn get_my_address(env: Env) -> Address {
+        return env.current_contract_address();
     }
 }
 

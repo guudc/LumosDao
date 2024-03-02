@@ -20,7 +20,9 @@ pub struct Proposal {
     pub yes_voting_power: u64,
     pub no_votes: u64,
     pub no_voting_power: u64,
-    pub budget: u64,
+    pub budget: i128,
+    pub signatory: Vec<Address>,
+    pub signatory_count: u32,
 }
 #[derive(Clone)]
 #[contracttype]
@@ -54,11 +56,13 @@ pub struct DAO {
     pub url: String,
     pub members: Vec<Address>,
     pub ban_members: Vec<Address>,
+    pub admins: Vec<Address>,
     pub active_proposals: u64,
     pub proposals: u64,
     pub proposals_list: Vec<u64>,
     pub top_voters: Vec<Votes>,
     pub delegators: Vec<Delegates>,
+    pub treasury: Address,
     pub created: u64,
 }
 #[derive(Clone)]
@@ -71,6 +75,8 @@ pub struct DaoMeta {
     pub description: String,
     pub members: u64,
     pub ban_members: Vec<Address>,
+    pub admins: Vec<Address>,
+    pub treasury: Address,
     pub active_proposals: u64,
     pub proposals: Vec<u64>,
     pub top_voters: Vec<Votes>,
